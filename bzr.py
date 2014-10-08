@@ -13,10 +13,46 @@ import os
 DOCUMENTATION = '''
 ---
 module: bzr
+author: Wes Mason
 short_description: Manages and interacts with bazaar repositories
 description:
     - "Manage bzr/bazaar repositories. To use this module, the
       following keys are required: C(src) and C(path)."
+options:
+    src:
+        required: true
+        description:
+            - Remote or local branch to branch/pull from
+    path:
+        required: true
+        description:
+            - Local path to branch/update into
+    state:
+        required: false
+        default: "latest"
+        description:
+            - State the repo should be in, latest or present
+              if present, the fact the path exista and is a
+              bzr repo will be enough, while latest will always
+              ensure the branch is at tip or the provided
+              revision/tag.
+    revision:
+        required: false
+        description:
+            - Optional revno to ensure repo is branched at or updated to.
+    tag:
+        required: false
+        description:
+            - Optional tag to ensure repo is branched at or updated to.
+    overwrite:
+        required: false
+        default: false
+        descripion:
+            - Whether to ignore local changes and overwrite from C(src).
+    extra_args:
+        required: false
+        description:
+            - Extra arguments passed to bzr.
 '''
 
 EXAMPLES = '''
@@ -36,8 +72,8 @@ def main():
 
     module = AnsibleModule(
         argument_spec=dict(
-            src=dict(default=None, required=True),
-            path=dict(default=None, required=True),
+            src=dict(required=True),
+            path=dict(required=True),
             state=dict(default='latest', choices=states, required=False),
             revision=dict(default=None, required=False),
             tag=dict(default=None, required=False),
