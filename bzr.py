@@ -74,6 +74,11 @@ def main():
 
     if not path_exists:
         cmd = 'bzr branch {} {} {}'.format(extra_args, src, path)
+
+        if module.check_mode:
+            module.exit_json(changed=True, cmd=cmd, path=path, src=src,
+                             revision=revision)
+
         rc, out, err = module.run_command(cmd)
         changed = True
 
@@ -98,6 +103,11 @@ def main():
                 extra_args += ' --overwrite'
 
             cmd = 'bzr pull {} {} -d {}'.format(extra_args, src, path)
+
+            if module.check_mode:
+                module.exit_json(changed=True, cmd=cmd, path=path, src=src,
+                                 revision=revision)
+
             rc, out, err = module.run_command(cmd)
 
             if rc != 0:
