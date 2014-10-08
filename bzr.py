@@ -22,6 +22,15 @@ description:
 EXAMPLES = '''
 '''
 
+def _fail(module, cmd, out, err):
+    msg = ''
+    if out:
+        msg += "stdout: %s" % (out, )
+    if err:
+        msg += "\n:stderr: %s" % (err, )
+    module.fail_json(cmd=cmd, msg=msg)
+
+
 def main():
     states = 'present', 'latest',
 
@@ -33,10 +42,10 @@ def main():
             revision=dict(default=None, required=False),
             tag=dict(default=None, required=False),
             overwrite=dict(default=False, required=False),
-            checkout=dict(default=False, required=False),
             extra_args=dict(default=None, required=False),
         ),
-        supports_check_mode=True
+        mutually_exclusive=[['tag', 'revision']],
+        supports_check_mode=True,
     )
 
     src = module.params['src']
@@ -45,7 +54,6 @@ def main():
     revision = module.params['revision']
     tag = module.params['tag']
     overwrite = module.params['overwrite']
-    checkout = module.params['checkout']
     extra_args = module.params['extra_args']
 
     changed = False
@@ -53,10 +61,54 @@ def main():
     out = ''
     err = ''
 
+    if tag:
+        if 'tag:' not in tag:
+            tag = 'tag:{}'.format(tag)
+
+        revision = tag
+
+    if revision:
+        extra_args += ' --revision={}'.format(revision or tag)
+
     path_exists = os.path.exists(path)
 
-    module.exit_json(changed=changed, cmd=cmd, src=src, path=path,
-                     revision=revision, stdout=out, stderr=err)
+    if not path_exists:
+        cmd = 'bzr branch {} {} {}'.format(extra_args, src, path)
+        rc, out, err = module.run_command(cmd)
+        changed = True
+
+        if rc != 0:
+            _fail(module, rc, out, err)
+
+    elif revision or state == 'latest':
+        update = True
+
+        if revision:
+            cmd = 'bzr revno --tree {}'.format(path)
+            rc, out, err = module.run_command(cmd)
+
+            if rc != 0:
+                _fail(module, rc, out, err)
+
+            if out.strip() != revision:
+                update = True
+
+        if update:
+            if overwrite:
+                extra_args += ' --overwrite'
+
+            cmd = 'bzr pull {} {} -d {}'.format(extra_args, src, path)
+            rc, out, err = module.run_command(cmd)
+
+            if rc != 0:
+                _fail(module, rc, out, err)
+
+            if 'Now on revision' in out:
+                changed = True
+
+
+    module.exit_json(changed=changed, cmd=cmd, src=src,
+                     path=path, revision=revision, stdout=out, stderr=err)
 
 
 # import module snippets
